@@ -1,0 +1,38 @@
+name: Build (Android)
+
+on: [push, pull_request]
+
+jobs:
+  android:
+    name: ${{ matrix.platform.name }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        platform:
+          - { name: Android, cmake: 1, android_abi: "arm64-v8a", android_platform: 23, arch: "aarch64" }
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: nttld/setup-ndk@v1
+        id: setup_ndk
+        with:
+          ndk-version: r21e
+      - name: Set up SDL
+        id: sdl
+        uses: libsdl-org/setup-sdl@v1
+        with:
+          version: sdl3-head
+          discriminator: sdl3-android-${{ matrix.platform.android_platform }}-${{ matrix.platform.android_abi }}
+          cmake-toolchain-file: ${{ steps.setup_ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake
+          cmake-arguments: -DANDROID_PLATFORM=${{ matrix.platform.android_platform }} -DANDROID_ABI=${{ matrix.platform.android_abi }}
+      - name: Configure (CMake)
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_TOOLCHAIN_FILE=${{ steps.setup_ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake \
+            -DANDROID_PLATFORM=${{ matrix.platform.android_platform }} \
+            -DANDROID_ABI=${{ matrix.platform.android_abi }}
+      - name: Build (CMake)
+        run: |
+          cmake --build build --config Release --parallel --verbose
+
